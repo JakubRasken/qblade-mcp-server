@@ -1,6 +1,9 @@
-# QBlade MCP Server
+# QBlade MCP Server (Unofficial)
 
-An official Model Context Protocol (MCP) server for the **QBlade** Wind Turbine Simulation and Design software. This server equips LLM agents (like Claude, Gemini, or other agentic frameworks) with the power to compile QBlade, programmatically generate turbine configurations, execute wind turbine simulations (with headless auto-fallback), and parse output data logs for performance evaluation.
+An unofficial, community-contributed Model Context Protocol (MCP) server for the **QBlade** Wind Turbine Simulation and Design software. This server equips LLM agents (like Claude, Gemini, or other agentic frameworks) with the power to compile QBlade, programmatically generate turbine configurations, execute wind turbine simulations (with headless auto-fallback), and parse output data logs for performance evaluation.
+
+> [!IMPORTANT]
+> **Disclaimer**: This project is an unofficial community integration. The authors are not affiliated with, authorized, maintained, sponsored, or endorsed by the QBlade project or its creators. The official QBlade software, documentation, and support can be found at the official QBlade website: [https://qblade.org/](https://qblade.org/).
 
 ---
 
