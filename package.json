@@ -1,0 +1,17 @@
+{
+  "name": "qblade-mcp-server",
+  "version": "1.0.0",
+  "description": "Model Context Protocol (MCP) server for QBlade wind turbine simulation software",
+  "main": "index.js",
+  "type": "module",
+  "bin": {
+    "qblade-mcp-server": "./index.js"
+  },
+  "scripts": {
+    "start": "node index.js"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.0.1"
+  },
+  "license": "MIT"
+}
