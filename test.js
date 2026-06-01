@@ -84,25 +84,46 @@ Time      Power      Thrust     Rpm
     assert(false, `Output parser test threw an error: ${error.message}`);
   }
 
-  // --- Test 3: Compiler Error Handling when dependencies are missing ---
+  // --- Test 3: Compiler Execution ---
   try {
-    console.log("\n(Testing compiler error handling...)");
-    // Since qmake is missing, compiling should fail gracefully or resolve with success: false
+    console.log("\n(Testing compiler execution...)");
     const compResult = await compileQBlade({ forceClean: false });
-    assert(compResult.success === false, "compileQBlade returns success: false when compiler dependencies are missing");
-    assert(compResult.error !== undefined, "compileQBlade returns a descriptive error message");
+    assert(compResult.success === true, "compileQBlade returns success: true and successfully checks the build status");
   } catch (error) {
     assert(false, `compileQBlade threw an unexpected error: ${error.message}`);
   }
 
-  // --- Test 4: Runner Error Handling when binary is missing ---
+  // --- Test 4: Runner Execution (End-to-End Headless Run) ---
   try {
-    console.log("(Testing runner error handling...)");
-    // Since QBladeCE binary hasn't been compiled yet, running should throw an error
-    await runQBlade({ inputFile: "dummy.sim" });
-    assert(false, "runQBlade should have failed when binary is missing");
+    console.log("(Testing runner execution headlessly...)");
+    const tempDir = "./temp_test";
+    if (!fs.existsSync(tempDir)) fs.mkdirSync(tempDir);
+    const simPath = path.join(tempDir, "test_run.sim");
+    
+    // Generate config first
+    await generateQBladeConfig({
+      type: "simulation",
+      outputPath: simPath,
+      params: { name: "IntegrationTest" }
+    });
+    
+    // Run under xvfb-run headlessly for 3000ms
+    const runResult = await runQBlade({
+      inputFile: simPath,
+      headless: true,
+      timeoutMs: 3000
+    });
+    
+    console.log("Runner Execution Result:", JSON.stringify(runResult, null, 2));
+    assert(runResult.success === true, "runQBlade successfully launched QBladeCE headlessly under xvfb-run");
+    const hasTimeoutMsg = runResult.message && runResult.message.includes("terminated after reaching timeout");
+    const exitedNormally = runResult.exitCode !== undefined;
+    assert(hasTimeoutMsg || exitedNormally, "runQBlade correctly handled process execution");
+    
+    // Clean up
+    fs.rmSync(tempDir, { recursive: true, force: true });
   } catch (error) {
-    assert(error.message.includes("binary not found"), "runQBlade throws a descriptive 'binary not found' error");
+    assert(false, `runQBlade threw an unexpected error: ${error.message}`);
   }
 
   console.log(`\n📊 Test Summary: ${passed} passed, ${failed} failed.`);

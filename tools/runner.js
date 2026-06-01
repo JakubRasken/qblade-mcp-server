@@ -20,9 +20,9 @@ export async function runQBlade(options = {}) {
     }
     
     // Build library paths
-    const localLibs = path.join(QBLADE_SOURCE_DIR, "Libraries");
+    const localLibs = path.join(QBLADE_SOURCE_DIR, "libraries", "libs_unix_64bit");
     const ldLibraryPath = process.env.LD_LIBRARY_PATH 
-      ? `${process.env.LD_LIBRARY_PATH}:${localLibs}`
+      ? `${localLibs}:${process.env.LD_LIBRARY_PATH}`
       : localLibs;
       
     const env = { 
