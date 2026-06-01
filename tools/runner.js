@@ -5,7 +5,7 @@ import path from "path";
 const QBLADE_SOURCE_DIR = "/home/jakub/qblade_2.0.4_source";
 
 export async function runQBlade(options = {}) {
-  const { inputFile, headless = true, timeoutMs = 15000 } = options;
+  const { inputFile, outputFile, runCLI = true, headless = true, timeoutMs = 15000 } = options;
   
   return new Promise((resolve, reject) => {
     // Ensure binary exists (can be QBladeCE or QBladeEXE depending on build results)
@@ -32,13 +32,25 @@ export async function runQBlade(options = {}) {
     
     let command = binaryPath;
     let args = [];
+    let generatedOutputPath = null;
     
     if (inputFile) {
       const resolvedInput = path.resolve(inputFile);
       if (!fs.existsSync(resolvedInput)) {
         return reject(new Error(`Input file not found at ${resolvedInput}`));
       }
-      args.push(resolvedInput);
+      
+      const isSimFile = resolvedInput.toLowerCase().endsWith(".sim");
+      if (isSimFile && runCLI !== false) {
+        const outPath = outputFile 
+          ? path.resolve(outputFile)
+          : path.join(path.dirname(resolvedInput), `${path.basename(resolvedInput, path.extname(resolvedInput))}_output.txt`);
+        
+        generatedOutputPath = outPath;
+        args.push("--run-sim", resolvedInput, outPath);
+      } else {
+        args.push(resolvedInput);
+      }
     }
     
     // Headless support via xvfb-run if headless is requested
@@ -72,7 +84,8 @@ export async function runQBlade(options = {}) {
         success: true,
         message: `QBlade process terminated after reaching timeout of ${timeoutMs}ms.`,
         stdout: stdoutData,
-        stderr: stderrData
+        stderr: stderrData,
+        outputPath: generatedOutputPath
       });
     }, timeoutMs);
     
@@ -82,7 +95,8 @@ export async function runQBlade(options = {}) {
         success: code === 0 || code === null,
         exitCode: code,
         stdout: stdoutData,
-        stderr: stderrData
+        stderr: stderrData,
+        outputPath: generatedOutputPath
       });
     });
     

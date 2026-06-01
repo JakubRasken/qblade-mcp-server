@@ -40,9 +40,9 @@ async function runTests() {
     assert(fs.existsSync(simPath), "generateQBladeConfig successfully created the simulation config file");
     
     const content = fs.readFileSync(simPath, "utf-8");
-    assert(content.includes("OBJECTNAME Test_Run"), "Config contains overridden name parameter");
-    assert(content.includes("WIND_SPEED 12.5"), "Config contains overridden windSpeed parameter");
-    assert(content.includes("TIMESTEP 0.05"), "Config contains overridden timeStep parameter");
+    assert(content.includes("Test_Run OBJECTNAME"), "Config contains overridden name parameter");
+    assert(content.includes("12.5 MEANINF"), "Config contains overridden windSpeed parameter");
+    assert(content.includes("0.05 TIMESTEP"), "Config contains overridden timeStep parameter");
     
     // Clean up
     fs.rmSync(tempDir, { recursive: true, force: true });
@@ -111,6 +111,7 @@ Time      Power      Thrust     Rpm
     const runResult = await runQBlade({
       inputFile: simPath,
       headless: true,
+      runCLI: false,
       timeoutMs: 3000
     });
     
@@ -124,6 +125,47 @@ Time      Power      Thrust     Rpm
     fs.rmSync(tempDir, { recursive: true, force: true });
   } catch (error) {
     assert(false, `runQBlade threw an unexpected error: ${error.message}`);
+  }
+
+  // --- Test 5: End-to-End Headless CLI Simulation on Workspace ---
+  try {
+    console.log("\n(Testing End-to-End CLI simulation run on real workspace files...)");
+    const realSimFile = "/home/jakub/simulation_run/rooftop_simulation.sim";
+    const testOutFile = "/home/jakub/simulation_run/rooftop_test_run_output.txt";
+    
+    if (fs.existsSync(testOutFile)) {
+      fs.unlinkSync(testOutFile);
+    }
+    
+    if (fs.existsSync(realSimFile)) {
+      const cliResult = await runQBlade({
+        inputFile: realSimFile,
+        outputFile: testOutFile,
+        runCLI: true,
+        headless: true,
+        timeoutMs: 15000
+      });
+      
+      assert(cliResult.success === true, "Headless CLI simulation returned success");
+      assert(fs.existsSync(testOutFile), "Headless CLI simulation successfully generated the output file");
+      
+      if (fs.existsSync(testOutFile)) {
+        const parsed = await parseQBladeOutput({ filePath: testOutFile });
+        assert(parsed.success === true, "parseQBladeOutput successfully parsed the generated physical data");
+        assert(parsed.totalRows > 0, `Parsed ${parsed.totalRows} timesteps of physical variables successfully`);
+        assert(parsed.headers.includes("Time [s]"), "Output headers include 'Time [s]'");
+        assert(parsed.headers.includes("Tip Speed Ratio [-]"), "Output headers include 'Tip Speed Ratio [-]'");
+        assert(parsed.headers.includes("Momentary Power Coefficient [-]"), "Output headers include 'Momentary Power Coefficient [-]'");
+        assert(parsed.headers.includes("Momentary Torque Coefficient [-]"), "Output headers include 'Momentary Torque Coefficient [-]'");
+        assert(parsed.headers.includes("Reynolds Number Blade 1 PAN 0 [-]"), "Output headers include 'Reynolds Number Blade 1 PAN 0 [-]'");
+        console.log(`💡 Reynolds Number Mean: ${parsed.statistics["Reynolds Number Blade 1 PAN 0 [-]"].mean.toFixed(1)}`);
+        console.log(`💡 Power Coefficient Max: ${parsed.statistics["Momentary Power Coefficient [-]"].max.toFixed(4)}`);
+      }
+    } else {
+      console.log("⚠️ Skipped Test 5: Workspace sim file not found.");
+    }
+  } catch (error) {
+    assert(false, `Headless CLI Simulation test threw an error: ${error.message}`);
   }
 
   console.log(`\n📊 Test Summary: ${passed} passed, ${failed} failed.`);

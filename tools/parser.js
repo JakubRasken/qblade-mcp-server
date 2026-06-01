@@ -34,6 +34,12 @@ export async function parseQBladeOutput(options = {}) {
   let dataRows = [];
   let metadata = [];
   
+  // Smart delimiter detection: default to tab/comma, fallback to whitespace if neither exists in the entire content
+  let delimiter = /[\t,]+/;
+  if (!content.includes('\t') && !content.includes(',')) {
+    delimiter = /[\s]+/;
+  }
+  
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i];
     if (line.startsWith("#") || line.startsWith("!") || line.startsWith("-")) {
@@ -43,13 +49,24 @@ export async function parseQBladeOutput(options = {}) {
     
     // First non-comment line that contains letters could be the headers
     if (headerLineIndex === -1 && /[a-zA-Z]/.test(line)) {
+      // If the file is tab/comma-separated, a true header line must contain the delimiter.
+      // Top metadata lines like "Aerodynamic Output File created..." do not contain tabs/commas.
+      if (content.includes('\t') && !line.includes('\t')) {
+        metadata.push(line);
+        continue;
+      }
+      if (content.includes(',') && !line.includes(',')) {
+        metadata.push(line);
+        continue;
+      }
+      
       headerLineIndex = i;
-      headers = line.split(/[\t\s,]+/).map(h => h.trim());
+      headers = line.split(delimiter).map(h => h.trim());
       continue;
     }
     
     // Rows containing numeric data
-    const parts = line.split(/[\t\s,]+/).map(p => parseFloat(p));
+    const parts = line.split(delimiter).map(p => parseFloat(p));
     if (parts.length > 0 && !parts.some(isNaN)) {
       dataRows.push(parts);
     } else {

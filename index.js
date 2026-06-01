@@ -6,6 +6,7 @@ import {
   CallToolRequestSchema,
   ListToolsRequestSchema,
 } from "@modelcontextprotocol/sdk/types.js";
+import fs from "fs";
 
 import { compileQBlade } from "./tools/compiler.js";
 import { runQBlade } from "./tools/runner.js";
@@ -50,30 +51,40 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
       },
       {
         name: "run_qblade",
-        description: "Launches the compiled QBlade wind turbine simulation executable.",
+        description: "Launches the compiled QBlade wind turbine simulation executable headlessly or in batch CLI mode.",
         inputSchema: {
           type: "object",
           properties: {
             inputFile: {
               type: "string",
-              description: "Absolute path to the configuration or project file to load (.qpr, .sim, .trb, etc.)."
+              description: "Absolute path to the configuration or project file to load (.sim, .trb, .afl, etc.)."
+            },
+            outputFile: {
+              type: "string",
+              description: "Optional. Absolute path to save simulation results as an ASCII text file. If not specified for a .sim file, a default path next to the sim file will be generated."
+            },
+            runCLI: {
+              type: "boolean",
+              description: "Automatically run the simulation in headless batch CLI mode and export results to an ASCII file. Highly recommended for .sim configurations.",
+              default: true
             },
             headless: {
               type: "boolean",
-              description: "Runs under virtual framebuffer (xvfb-run) to prevent graphical crashes in headless/server environments.",
+              description: "Runs under a virtual framebuffer (xvfb-run) to prevent graphical display crashes in server/headless environments.",
               default: true
             },
             timeoutMs: {
               type: "integer",
               description: "Maximum runtime in milliseconds before closing QBlade.",
-              default: 15000
+              default: 30000
             }
-          }
+          },
+          required: ["inputFile"]
         }
       },
       {
         name: "generate_qblade_configs",
-        description: "Generates template or custom QBlade configuration files (.sim, .trb, .inp, .afl).",
+        description: "Generates fully compliant key-value configuration files (.sim, .trb, .inp, .afl) in QBlade's customized <Value> <Keyword> format.",
         inputSchema: {
           type: "object",
           properties: {
@@ -88,7 +99,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
             },
             params: {
               type: "object",
-              description: "Key-value configuration parameters to override defaults.",
+              description: "Key-value configuration parameters to override defaults. Exposes dynamic stall (DYNSTALLTYPE), wake models (WAKETYPE, WAKEROLLUP, TRAILINGVORT, SHEDVORT), tower shadow (TOWERSHADOW, TOWERDRAG), boundary layer trip triggers (HIMMELSKAMP), and structural integration solvers (STRSUBSTEP, TINTEGRATOR, STRITERATIONS).",
               default: {}
             }
           },
@@ -133,6 +144,14 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       
       case "run_qblade": {
         const result = await runQBlade(args);
+        if (result.success && result.outputPath && fs.existsSync(result.outputPath)) {
+          try {
+            const parsed = await parseQBladeOutput({ filePath: result.outputPath });
+            result.parsedResults = parsed;
+          } catch (parseErr) {
+            result.parseError = `Failed to automatically parse output file: ${parseErr.message}`;
+          }
+        }
         return {
           content: [
             {
